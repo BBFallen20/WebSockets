@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<button id="1">Жми</button>
+<script>
+
+</script>
+<script>
+    let counter = 1
+    b = document.getElementById('1')
+    b.onclick = function (event) {
+        let ws = new WebSocket('ws://localhost:8000/');
+        ws.onerror = () => console.log('error');
+        ws.onmessage = event => {
+            console.log("RECEIVED "+event.data)
+            counter = Number(event.data)
+        };
+        ws.onopen = () => {
+            console.log("SENDED " +counter)
+            ws.send(counter + '/{{ user.id }}');
+        }
+    }
+</script>
+</body>
+</html>
