@@ -1,46 +1,52 @@
-def check_user_in_file(user:str):
-    with open('../data.txt', 'r') as File:
-        data = File.read().split(';')
-        for d in data:
-            data_user, data_value = d.split(':')
-            if user in data_user:
-                return int(data_value)
-
-
-data = 1
-checked = False
-
-
 async def websocket_application(scope, receive, send):
     while True:
         event = await receive()
 
         if event['type'] == 'websocket.connect':
             await send({
-                'type': 'websocket.accept'
+                'type': 'websocket.accept',
             })
 
         if event['type'] == 'websocket.disconnect':
             break
 
         if event['type'] == 'websocket.receive':
-            global data
-            global checked
-            memory_data = None
-            received_data = event['text']
-            counter, user = received_data.split('/')
-            print(checked)
-            if not checked:
-                memory_data = check_user_in_file(user)
-                checked = True
-            if memory_data:
-                data = memory_data
-            else:
-                data = int(counter) + 1
+            users_messages = {}
+            data = str(event['text'])
+            # Делим сообщение по двоеточию
+            data_split = data.split(':')
+            # Если введён id пользователя которому шлём сообщение
+            user_from = data_split[0]
+            if data_split[1]:
+                user_to = data_split[1]
+                # Записываем сообщение в словарь и отправляем в файлик
+                users_messages.update({user_from: user_to})
+                with open('../data.txt', 'a') as File:
+                    File.write(str(users_messages) + ';')
+            # Ищем в файлике сообщения для текущего пользователя
+            with open('../data.txt', 'r') as File:
+                buffer = File.read()
+                messages = buffer.split(';')
+                for message in messages:
+                    try:
+                        # Примитивное форматирование сообщений с отслежкой возможных ошибок
+                        u_from, u_to = message.replace('}', '').replace('{', '').split(':')
+                    except ValueError:
+                        pass
+                    # Если находим сообщение предназначенное текущему пользователю - отправляем
+                    if str(user_from) in u_to:
+                        message_to_send = u_from
+                        await send({
+                            'type': 'websocket.send',
+                            'text': f'YOU HAVE A NEW MESSAGE FROM: {message_to_send}'
+                        })
+                    buffer.replace(message, '')
+            # Перезаписываем буффер, удаляя отправленные сообщения
             with open('../data.txt', 'w') as File:
-                File.write(f'{user}:{counter};')
+                File.write(buffer)
+
             await send({
                 'type': 'websocket.send',
-                'text': str(data)
+                'text': f"Your message:'{data}'"
             })
 
